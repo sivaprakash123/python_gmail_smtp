@@ -1,7 +1,5 @@
-# Python code to illustrate Sending mail with attachments
-# from your Gmail account 
- 
-# libraries to be imported
+# Python code to send email with multiple attachments from your Gmail account 
+
 import smtplib, os, sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,7 +12,6 @@ today = date.today()
 fromaddr = "testuser@gmail.com"
 # Add comma separated To addresses to send email
 toaddr = "sivaprakash123@gmail.com","email2@yahoo.com","email3@gmail.com"
-#toaddr = "sivaprakash.ramasamy@tarento.com"
 # instance of MIMEMultipart
 msg = MIMEMultipart()
  
@@ -22,11 +19,10 @@ msg = MIMEMultipart()
 msg['From'] = "testuser@gmail.com"
  
 # storing the receivers email address 
-#msg['To'] = "sivaprakash.ramasamy@tarento.com"
 msg['To'] = ",".join(toaddr)
 # storing the subject 
 msg['Subject'] = "My Reports"
- 
+
 # string to store the body of the mail
 body = "Hi, \nAttached the reports \nThanks, \nSivaprakash R"
  
@@ -39,25 +35,15 @@ attachments = ["/opt/report1-%s.csv"% (today), "/opt/report2-%s.csv"%(today)]
 if 'attachments' in globals() and len('attachments') > 0: # are there attachments?
     for filename in attachments:
         f = filename
+# instance of MIMEBase and named as p
         p = MIMEBase('application', "octet-stream")
+# To change the payload into encoded form
         p.set_payload( open(f,"rb").read() )
+# encode into base64
         encoders.encode_base64(p)
         p.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
-        msg.attach(p)
- 
-# instance of MIMEBase and named as p
-#p = MIMEBase('application', 'octet-stream')
- 
-# To change the payload into encoded form
-#p.set_payload((attachment).read())
- 
-# encode into base64
-#encoders.encode_base64(p)
-  
-#p.add_header('Content-Disposition', "attachment; filename= %s" % filename)
- 
 # attach the instance 'p' to instance 'msg'
-#msg.attach(p)
+        msg.attach(p)
  
 # creates SMTP session
 s = smtplib.SMTP('smtp.gmail.com', 587)
