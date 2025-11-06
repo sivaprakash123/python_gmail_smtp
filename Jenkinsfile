@@ -9,7 +9,7 @@ pipeline {
         GERRIT_KEY = "/var/lib/jenkins/.ssh/gerrit_jenkins"
 
         // ✅ Required for GitHub auto-merge
-        GITHUB_TOKEN = credentials('gerrit-github-token')
+        //GITHUB_TOKEN = credentials('gerrit-github-token')
         GITHUB_REPO = "sivaprakash123/python_gmail_smtp"   // <---- your GitHub repo
     }
 
@@ -93,6 +93,7 @@ pipeline {
             when { changeRequest() }
             steps {
                 script {
+		  withCredentials([file(credentialsId: 'gerrit-github-token', variable: 'GITHUB_TOKEN')]) {
                     if (vote.toInteger() > 0) {
                         echo "✅ Gerrit approved — merging PR #${CHANGE_ID}"
 
