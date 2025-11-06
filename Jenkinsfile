@@ -14,7 +14,9 @@ pipeline {
     stages {
 
         stage('Detect PR') {
-            when { changeRequest() }
+            when {
+                expression { return env.GERRIT_CHANGE_NUMBER != null }
+            }
             steps {
                 script {
                     echo "PR detected: ${env.CHANGE_ID}"
@@ -24,7 +26,9 @@ pipeline {
         }
 
         stage('Fetch PR Code') {
-            when { changeRequest() }
+            when {
+                expression { return env.GERRIT_CHANGE_NUMBER != null }
+            }
             steps {
                 sh """
                     git fetch origin pull/${CHANGE_ID}/head:pr-${CHANGE_ID}
@@ -34,7 +38,9 @@ pipeline {
         }
 
         stage('Push to Gerrit for Review') {
-            when { changeRequest() }
+            when {
+                expression { return env.GERRIT_CHANGE_NUMBER != null }
+            }
             steps {
                 sh """
                     git push ssh://${GERRIT_USER}@${GERRIT_HOST}:${GERRIT_PORT}/sivaprakash123/python_gmail_smtp.git \
@@ -44,7 +50,9 @@ pipeline {
         }
 
         stage('Check Gerrit Vote') {
-            when { changeRequest() }
+            when {
+                expression { return env.GERRIT_CHANGE_NUMBER != null }
+            }
             steps {
                 script {
                     echo "Checking Gerrit vote for Change-ID: ${CHANGE_ID}"
@@ -85,7 +93,9 @@ pipeline {
         }
 
         stage('Auto Merge GitHub PR After Gerrit Approval') {
-            when { changeRequest() }
+            when {
+                expression { return env.GERRIT_CHANGE_NUMBER != null }
+            }
             steps {
                 script {
                     if (vote.toInteger() > 0) {
