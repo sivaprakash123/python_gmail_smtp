@@ -66,27 +66,30 @@ pipeline {
                     GIT_SSH_COMMAND="ssh -i ${GERRIT_KEY} -o StrictHostKeyChecking=no" \
                     git push gerrit HEAD:refs/for/${TARGET_BRANCH}%topic=PR-${CHANGE_ID}
                 """
-                echo "📤 Code pushed to Gerrit for review"
+                echo "📤 Code pushed to Gerrit for review (topic=PR-${CHANGE_ID})"
             }
         }
 
+        // 🔧 PATCHED STAGE BELOW
         stage('Check Gerrit Vote') {
             when { changeRequest() }
             steps {
                 script {
-                    echo "🔍 Checking Gerrit votes..."
+                    echo "🔍 Checking Gerrit votes for topic=PR-${CHANGE_ID}..."
 
+                    // Query Gerrit by topic name (maps to GitHub PR ID)
                     def votesJson = sh(
                         script: """
                         ssh -p ${GERRIT_PORT} -i ${GERRIT_KEY} ${GERRIT_USER}@${GERRIT_HOST} \
-                        "gerrit query --format=JSON change:${CHANGE_ID} --current-patch-set"
+                        "gerrit query --format=JSON topic:PR-${CHANGE_ID} --current-patch-set"
                         """,
                         returnStdout: true
                     ).trim()
 
                     echo "📄 Gerrit Response: ${votesJson}"
 
-                    vote = sh(
+                    // Extract highest Code-Review vote
+                    def vote = sh(
                         script: """
                         echo '${votesJson}' | jq -r '
                           select(.currentPatchSet) |
@@ -98,13 +101,17 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    if (!vote) error "❌ No Gerrit vote yet"
+                    if (!vote) {
+                        error "❌ No Gerrit vote yet for PR-${CHANGE_ID}"
+                    }
 
-                    echo "✅ Gerrit Vote = ${vote}"
+                    echo "✅ Highest Gerrit Code-Review vote = ${vote}"
 
                     if (vote.toInteger() < 1) {
-                        error "❌ Gerrit review failed (vote=${vote})"
+                        error "❌ Gerrit review not approved (vote=${vote})"
                     }
+
+                    echo "🎉 Gerrit review approved for PR-${CHANGE_ID}"
                 }
             }
         }
@@ -116,7 +123,6 @@ pipeline {
                     echo "🔁 Gerrit approved — merging GitHub PR"
 
                     withCredentials([string(credentialsId: 'gerrit-github-token', variable: 'GITHUB_TOKEN')]) {
-
                         sh """
                         curl -X PUT \
                             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
@@ -124,7 +130,6 @@ pipeline {
                             -d '{ "merge_method": "squash" }' \
                             https://api.github.com/repos/${GITHUB_REPO}/pulls/${CHANGE_ID}/merge
                         """
-
                     }
 
                     echo "🎉 GitHub PR #${CHANGE_ID} merged"
