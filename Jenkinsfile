@@ -8,9 +8,7 @@ pipeline {
         TARGET_BRANCH = "master"
         GERRIT_KEY = "/var/lib/jenkins/.ssh/gerrit_jenkins"
 
-        // ✅ Required for GitHub auto-merge
-        //GITHUB_TOKEN = credentials('gerrit-github-token')
-        GITHUB_REPO = "sivaprakash123/python_gmail_smtp"   // <---- your GitHub repo
+        GITHUB_REPO = "sivaprakash123/python_gmail_smtp"
     }
 
     stages {
@@ -82,30 +80,32 @@ pipeline {
                     if (vote.toInteger() < 0) {
                         error "❌ Gerrit review failed (vote=${vote}). Rejecting PR."
                     }
-
-                    echo "✅ Gerrit review passed (vote=${vote}) — pipeline can continue"
                 }
             }
         }
 
-        // ✅ New Stage — Auto merge GitHub PR after Gerrit approval
         stage('Auto Merge GitHub PR After Gerrit Approval') {
             when { changeRequest() }
             steps {
                 script {
-		  withCredentials([file(credentialsId: 'gerrit-github-token', variable: 'GITHUB_TOKEN')]) {
                     if (vote.toInteger() > 0) {
+
                         echo "✅ Gerrit approved — merging PR #${CHANGE_ID}"
 
-                        sh """
-                        curl -X PUT \
-                            -H "Authorization: token ${GITHUB_TOKEN}" \
-                            -H "Accept: application/vnd.github.v3+json" \
-                            -d '{ "merge_method": "squash" }' \
-                            https://api.github.com/repos/${GITHUB_REPO}/pulls/${CHANGE_ID}/merge
-                        """
+                        // ✅ Correct GitHub token usage
+                        withCredentials([string(credentialsId: 'gerrit-github-token', variable: 'GITHUB_TOKEN')]) {
 
-                        echo "🎉 GitHub PR #${CHANGE_ID} auto-merged"
+                            sh """
+                            curl -X PUT \
+                                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                                -H "Accept: application/vnd.github.v3+json" \
+                                -d '{ "merge_method": "squash" }' \
+                                https://api.github.com/repos/${GITHUB_REPO}/pulls/${CHANGE_ID}/merge
+                            """
+
+                            echo "🎉 GitHub PR #${CHANGE_ID} auto-merged"
+                        }
+
                     } else {
                         echo "⛔ Gerrit approval not enough — not merging"
                     }
@@ -114,4 +114,4 @@ pipeline {
         }
     }
 }
-}
+
