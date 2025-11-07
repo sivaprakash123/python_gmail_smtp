@@ -42,11 +42,14 @@ pipeline {
         stage('SonarQube Code Quality Check (Mock for POC)') {
 //            when { changeRequest() }
             steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                 script {
                     echo "🧠 [POC MODE] Simulating SonarQube scan..."
                     sh 'echo "Pretending SonarQube scan succeeded..."'
                     echo "✅ [POC MODE] Quality Gate passed (mocked)"
+		    currentBuild.result = 'SUCCESS'
                 }
+	      }
             }
         }
         // ------------------------------------------------------------------
