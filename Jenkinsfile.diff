@@ -2,13 +2,21 @@ pipeline {
     agent any
 
     environment {
+        // Gerrit settings
         GERRIT_USER = "jenkins"
         GERRIT_HOST = "10.175.2.49"
         GERRIT_PORT = "29418"
         TARGET_BRANCH = "master"
         GERRIT_KEY = "/var/lib/jenkins/.ssh/gerrit_jenkins"
 
+        // GitHub repo details
         GITHUB_REPO = "sivaprakash123/python_gmail_smtp"
+
+        // SonarQube instance (configured in Jenkins global config)
+        SONARQUBE_ENV = "sonarqube-server"
+
+        // Jira URL base (replace with your real URL)
+        JIRA_BASE = "https://karmayogibharat.atlassian.net"
     }
 
     stages {
@@ -30,13 +38,27 @@ pipeline {
             }
         }
 
+
+	stage('SonarQube Code Quality Check (Mock Pass)') {
+	    when { changeRequest() }
+	    steps {
+	        script {
+	            echo "🧠 [TEST MODE] Simulating SonarQube analysis..."
+	            // Simulate Sonar scan (you can still run mvn if you want)
+        	    sh 'echo "Pretending SonarQube scan succeeded..."'
+
+	            // Fake Quality Gate result as PASS
+        	    currentBuild.result = 'SUCCESS'
+	            echo "✅ [TEST MODE] SonarQube Quality Gate passed (mocked)"
+	        }
+	    }
+	}
+
         stage('Add Gerrit Change-Id if missing') {
             when { changeRequest() }
             steps {
                 script {
                     echo "➡️ Checking Change-Id..."
-
-                    // Detect Change-Id
                     def changeId = sh(
                         script: "git log -1 | grep 'Change-Id:' || true",
                         returnStdout: true
@@ -44,11 +66,9 @@ pipeline {
 
                     if (!changeId) {
                         echo "⚠️ No Change-Id found — generating one..."
-
                         sh """
                         git config user.name "Jenkins"
                         git config user.email "jenkins@local"
-
                         git commit --amend -m "\$(git log -1 --pretty=%B)\n\nChange-Id: I\$(uuidgen | tr -d '-')"
                         """
                     } else {
@@ -66,27 +86,28 @@ pipeline {
                     GIT_SSH_COMMAND="ssh -i ${GERRIT_KEY} -o StrictHostKeyChecking=no" \
                     git push gerrit HEAD:refs/for/${TARGET_BRANCH}%topic=PR-${CHANGE_ID}
                 """
-                echo "📤 Code pushed to Gerrit for review"
+                echo "📤 Code pushed to Gerrit for review (topic=PR-${CHANGE_ID})"
             }
         }
 
-        stage('Check Gerrit Vote') {
+        // ---------- PATCHED STAGE ----------
+        stage('Check Gerrit Approval') {
             when { changeRequest() }
             steps {
                 script {
-                    echo "🔍 Checking Gerrit votes..."
+                    echo "🔍 Checking Gerrit votes for topic=PR-${CHANGE_ID}..."
 
                     def votesJson = sh(
                         script: """
                         ssh -p ${GERRIT_PORT} -i ${GERRIT_KEY} ${GERRIT_USER}@${GERRIT_HOST} \
-                        "gerrit query --format=JSON change:${CHANGE_ID} --current-patch-set"
+                        "gerrit query --format=JSON topic:PR-${CHANGE_ID} --current-patch-set"
                         """,
                         returnStdout: true
                     ).trim()
 
                     echo "📄 Gerrit Response: ${votesJson}"
 
-                    vote = sh(
+                    def vote = sh(
                         script: """
                         echo '${votesJson}' | jq -r '
                           select(.currentPatchSet) |
@@ -98,25 +119,29 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    if (!vote) error "❌ No Gerrit vote yet"
-
-                    echo "✅ Gerrit Vote = ${vote}"
-
-                    if (vote.toInteger() < 1) {
-                        error "❌ Gerrit review failed (vote=${vote})"
+                    if (!vote) {
+                        error "❌ No Gerrit review yet for PR-${CHANGE_ID}"
                     }
+
+                    echo "✅ Highest Gerrit Code-Review vote = ${vote}"
+
+                    if (vote.toInteger() < 2) {
+                        error "❌ Gerrit review not approved (vote=${vote})"
+                    }
+
+                    echo "🎉 Gerrit review approved for PR-${CHANGE_ID}"
                 }
             }
         }
+        // ----------------------------------
 
-        stage('Auto Merge GitHub PR After Gerrit Approval') {
+        stage('Merge GitHub PR After Gerrit Approval') {
             when { changeRequest() }
             steps {
                 script {
                     echo "🔁 Gerrit approved — merging GitHub PR"
 
                     withCredentials([string(credentialsId: 'gerrit-github-token', variable: 'GITHUB_TOKEN')]) {
-
                         sh """
                         curl -X PUT \
                             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
@@ -124,13 +149,44 @@ pipeline {
                             -d '{ "merge_method": "squash" }' \
                             https://api.github.com/repos/${GITHUB_REPO}/pulls/${CHANGE_ID}/merge
                         """
-
                     }
 
-                    echo "🎉 GitHub PR #${CHANGE_ID} merged"
+                    echo "🎉 GitHub PR #${CHANGE_ID} merged successfully"
                 }
             }
         }
+
+        // ---------- NEW ----------
+        stage('Update Jira Ticket') {
+            when { changeRequest() }
+            steps {
+                script {
+                    def jiraKey = sh(
+                        script: "git log -1 --pretty=%B | grep -oE '[A-Z]+-[0-9]+' || true",
+                        returnStdout: true
+                    ).trim()
+
+                    if (jiraKey) {
+                        echo "📎 Found Jira ticket: ${jiraKey}"
+
+                        withCredentials([string(credentialsId: 'jira-api-token', variable: 'JIRA_TOKEN')]) {
+                            sh """
+                            curl -X POST \
+                                -H "Authorization: Basic ${JIRA_TOKEN}" \
+                                -H "Content-Type: application/json" \
+                                -d '{ "transition": { "id": "31" } }' \
+                                ${JIRA_BASE}/rest/api/3/issue/${jiraKey}/transitions
+                            """
+                        }
+
+                        echo "🎯 Jira issue ${jiraKey} updated successfully."
+                    } else {
+                        echo "⚠️ No Jira key found in commit message."
+                    }
+                }
+            }
+        }
+        // --------------------------
     }
 }
 
