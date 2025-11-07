@@ -22,14 +22,14 @@ pipeline {
     stages {
 
         stage('Detect PR') {
-            when { changeRequest() }
+ //           when { changeRequest() }
             steps {
                 echo "✅ GitHub PR detected: ID=${env.CHANGE_ID}, Branch=${env.CHANGE_BRANCH}"
             }
         }
 
         stage('Fetch PR Code') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 sh """
                     git fetch origin pull/${CHANGE_ID}/head:pr-${CHANGE_ID}
@@ -40,7 +40,7 @@ pipeline {
 
         // ------------------------------------------------------------------
         stage('SonarQube Code Quality Check (Mock for POC)') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 script {
                     echo "🧠 [POC MODE] Simulating SonarQube scan..."
@@ -52,7 +52,7 @@ pipeline {
         // ------------------------------------------------------------------
 
         stage('Add Gerrit Change-Id if missing') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 script {
                     echo "➡️ Checking Change-Id..."
@@ -77,7 +77,7 @@ pipeline {
         }
 
         stage('Push to Gerrit for Review') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 script {
                     echo "📤 Pushing to Gerrit (topic=PR-${CHANGE_ID})"
@@ -121,7 +121,7 @@ pipeline {
         }
 
         stage('Merge GitHub PR After Gerrit Approval') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 script {
                     echo "🔁 Merging GitHub PR #${CHANGE_ID}"
@@ -148,7 +148,7 @@ pipeline {
         }
 
         stage('Update Jira Ticket') {
-            when { changeRequest() }
+//            when { changeRequest() }
             steps {
                 script {
                     def jiraKey = sh(
