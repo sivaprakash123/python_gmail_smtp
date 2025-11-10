@@ -13,7 +13,10 @@ pipeline {
     GERRIT_PORT = "29418"
     TARGET_BRANCH = "master"
     GERRIT_KEY   = "/var/lib/jenkins/.ssh/gerrit_jenkins"
-
+    // Simulated PR metadata (for manual test)
+    CHANGE_ID = "101"            // Fake PR ID
+    CHANGE_BRANCH = "feature/test-pr"
+    CHANGE_TARGET = "master"
     // === GitHub repo details ===
     // org/repo format
     GITHUB_REPO = "sivaprakash123/python_gmail_smtp"
