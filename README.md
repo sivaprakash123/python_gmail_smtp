@@ -7,3 +7,4 @@ checking PR one more PR
 new pipeline
 test branch PR
 webhook test
+Test PR merge
