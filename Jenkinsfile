@@ -61,7 +61,7 @@ pipeline {
             def scannerHome = tool name: "${SONAR_SCANNER}", type: 'hudson.plugins.sonar.SonarRunnerInstallation'
             // Tune paths as needed; default scans repo root
             sh """
-              "${scannerHome}/bin/sonar-scanner" \
+              "/var/lib/jenkins/sonar-scanner-7.3.0.5189-linux-x64/bin/sonar-scanner" \
                 -Dsonar.projectKey=${GITHUB_REPO.replaceAll('/','_')} \
                 -Dsonar.projectName=${GITHUB_REPO} \
                 -Dsonar.sources=. \
