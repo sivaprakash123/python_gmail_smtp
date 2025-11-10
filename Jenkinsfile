@@ -63,7 +63,7 @@ pipeline {
                 -Dsonar.projectName=${GITHUB_REPO} \
                 -Dsonar.sources=. \
                 -Dsonar.host.url=${SONAR_HOST_URL} \
-                -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                -Dsonar.login=${SONAR_TOKEN} \
                 -Dsonar.pullrequest.key=${CHANGE_ID} \
                 -Dsonar.pullrequest.branch=${CHANGE_BRANCH} \
                 -Dsonar.pullrequest.base=${CHANGE_TARGET}
